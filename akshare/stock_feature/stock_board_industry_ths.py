@@ -382,6 +382,60 @@ def stock_board_industry_summary_ths() -> pd.DataFrame:
     return big_df
 
 
+def stock_board_industry_summary_detail() -> pd.DataFrame:
+    """
+    同花顺-数据中心-行业板块-同花顺行业一览表
+    https://q.10jqka.com.cn/thshy/
+    :return: 同花顺行业一览表
+    :rtype: pandas.DataFrame
+    """
+    js_code = py_mini_racer.MiniRacer()
+    js_content = _get_file_content_ths("ths.js")
+    js_code.eval(js_content)
+    v_code = js_code.call("v")
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/89.0.4389.90 Safari/537.36",
+        "Cookie": f"v={v_code}",
+    }
+    url = "http://q.10jqka.com.cn/thshy/detail/field/199112/order/desc/page/1/ajax/1/code/881266/"
+    r = requests.get(url, headers=headers)
+    soup = BeautifulSoup(r.text, features="lxml")
+    page_num = soup.find(name="span", attrs={"class": "page_info"}).text.split("/")[1]
+    big_df = pd.DataFrame()
+    tqdm = get_tqdm()
+    for page in tqdm(range(1, int(page_num) + 1), leave=False):
+        url = f"http://q.10jqka.com.cn/thshy/index/field/199112/order/desc/page/{page}/ajax/1/"
+        r = requests.get(url, headers=headers)
+        temp_df = pd.read_html(StringIO(r.text))[0]
+        big_df = pd.concat(objs=[big_df, temp_df], ignore_index=True)
+
+    big_df.columns = [
+        "序号",
+        "板块",
+        "涨跌幅",
+        "总成交量",
+        "总成交额",
+        "净流入",
+        "上涨家数",
+        "下跌家数",
+        "均价",
+        "领涨股",
+        "领涨股-最新价",
+        "领涨股-涨跌幅",
+    ]
+    big_df["涨跌幅"] = pd.to_numeric(big_df["涨跌幅"], errors="coerce")
+    big_df["总成交量"] = pd.to_numeric(big_df["总成交量"], errors="coerce")
+    big_df["总成交额"] = pd.to_numeric(big_df["总成交额"], errors="coerce")
+    big_df["净流入"] = pd.to_numeric(big_df["净流入"], errors="coerce")
+    big_df["上涨家数"] = pd.to_numeric(big_df["上涨家数"], errors="coerce")
+    big_df["下跌家数"] = pd.to_numeric(big_df["下跌家数"], errors="coerce")
+    big_df["均价"] = pd.to_numeric(big_df["均价"], errors="coerce")
+    big_df["领涨股-最新价"] = pd.to_numeric(big_df["领涨股-最新价"], errors="coerce")
+    big_df["领涨股-涨跌幅"] = pd.to_numeric(big_df["领涨股-涨跌幅"], errors="coerce")
+    return big_df
+
+
 if __name__ == "__main__":
     stock_board_industry_name_ths_df = stock_board_industry_name_ths()
     print(stock_board_industry_name_ths_df)
